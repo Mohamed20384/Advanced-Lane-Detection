@@ -1,78 +1,103 @@
-# Advanced-Lane-Detection
-Advanced Lane Segmentation - Computer vision
+# 🚦 Advanced Lane Detection — Road Segmentation with Computer Vision  
 
-![ezgif](https://github.com/user-attachments/assets/28993e17-441f-4f34-82a2-9d2adb9588d1)
+![ezgif](https://github.com/user-attachments/assets/28993e17-441f-4f34-82a2-9d2adb9588d1)  
 
-In Advanced Lane Segmentation, we apply computer vision techniques to augment video output with a detected road lane, road radius curvature and road center offset. 
+**Advanced Lane Detection** is a computer vision project that transforms raw driving footage into an **augmented video stream**, overlaying detected lane boundaries, radius of road curvature, and vehicle offset from the center.  
 
-Steps of this project are the following:
-Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-Apply a distortion correction to raw images.
-Use color transforms, gradients, etc., to create a thresholded binary image.
-Apply a perspective transform to rectify binary image (“birds-eye view”).
-Detect lane pixels and fit to find the lane boundary.
-Determine the curvature of the lane and vehicle position with respect to center.
-Warp the detected lane boundaries back onto the original image.
-Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
+This system combines **camera calibration, image transformations, thresholding, perspective warping, and polynomial fitting** to deliver real-time, reliable lane detection for autonomous driving and driver-assist systems.  
 
-Camera Calibration
-Every camera has some distortion factor in its lens. The known approach to correct for that in (x,y,z) space is apply coefficients to undistort the image. To calculate this a camera calibration process is required.
-It involves reading a set of warped chessboard images, converting them into grey scale images before using cv2.findChessboardCorners() to identify the corners as imgpoints.
+---
 
-![image](https://github.com/user-attachments/assets/c06c7291-d9f7-41ad-b56c-2e76893d0e04)
+## 🔑 Pipeline Overview  
 
-If corners are detected then they are collected as image points imgpoints along with a set of object points objpoints; with an assumption made that the chessboard is fixed on the (x,y) plane at z=0 (object points will hence be the same for each calibration image).
-In the function camera_calibrate I pass the collected objpoints, imgpoints and a test image for the camera image dimensions. It in turn uses cv2.calibrateCamera() to calculate the distortion coefficients before the test image is undistorted with cv2.undistort() giving the following result.
+The project follows a robust step-by-step approach:  
 
-![image](https://github.com/user-attachments/assets/b00cc303-9a5e-4b38-878c-fd0035da6f98)
+1. **Camera Calibration**  
+   - Estimate camera calibration matrix & distortion coefficients from chessboard images.  
+   - Remove lens distortion to get clean, undistorted frames.  
 
-Distortion corrected image
-The undistort_image takes an image and defaults the mtx and dist variables from the previous camera calibration before returning the undistorted image.
+2. **Image Undistortion**  
+   - Apply calibration results to raw road images.  
+   - Correct for distortion artifacts for more accurate processing.  
 
-![image](https://github.com/user-attachments/assets/3d3e0f7b-4a09-4270-bed5-a5ca6d0c7f91)
+3. **Binary Thresholding**  
+   - Use color transforms + gradient thresholds to extract lane markings.  
+   - Output: binary (0/1) images highlighting only lane features.  
 
-Threshold binary images
-A threshold binary image, as the name infers, contains a representation of the original image but in binary 0,1 as opposed to a BGR (Blue, Green, Red) colour spectrum. The threshold part means that say the Red colour channel( with a range of 0-255) was between a threshold value range of 170-255, that it would be set to 1.
-A sample output follows.
+4. **Perspective Transform (Bird’s-Eye View)**  
+   - Warp road images into a top-down perspective.  
+   - Straightens road lines to simplify detection.  
 
-![image](https://github.com/user-attachments/assets/08bb71ce-f1e3-445a-9ee4-e6be56a461a5)
+5. **Lane Pixel Detection & Polynomial Fitting**  
+   - Identify lane line pixels using histogram + sliding windows.  
+   - Fit a 2nd-order polynomial to map lane curvature.  
 
-Initial experimentation occurred in a separate notebook before being refactored back into the project notebook in the combined_threshold function. It has a number of default thresholds for sobel gradient x&y, sobel magnitude, sober direction, Saturation (from HLS), Red (from RGB) and Y (luminance from YUV) plus a threshold type parameter (daytime-normal, daytime-bright, daytime-shadow, daytime-filter-pavement).
-Whilst the daytime-normal threshold worked great for the majority of images there were situations where it didn't e.g. pavement colour changes in bright light and shadow.
+6. **Curvature & Vehicle Offset Calculation**  
+   - Convert pixel-space to meters using real-world scaling.  
+   - Estimate lane curvature radius and car’s lateral position relative to road center.  
 
-![image](https://github.com/user-attachments/assets/7148e51c-f582-45cc-b9f3-d6abe99e8550)
-Daytime Normal with noise bright light & pavement change
-![image](https://github.com/user-attachments/assets/50163cbb-3a1e-4cdb-adac-aa852a93d1fb)
-Daytime Normal with shadow
-Perspective transform — birds eye view
-To be able to detect the road lines, the undistorted image is warped. The function calc_warp_points takes an image's height & width and then calculates the src and dst array of points. perspective_transforms takes them and returns two matrixes M and Minv for perspective_warp and perpective_unwarp functions respectively. The following image, shows an undistorted image, with the src points drawn with the corresponding warped image (the goal here was straight lines)
+7. **Final Overlay**  
+   - Warp lane boundaries back onto original frame.  
+   - Annotate video with lane boundaries, curvature radius, and vehicle offset.  
 
-![image](https://github.com/user-attachments/assets/2f880d2d-7721-4f44-9c25-a1d3ac137df8)
+---
 
-Lane-line pixel identification and polynomial fit
-Once we have a birds eye view with a combined threshold we are in a position to identify lines and a polynomial to draw a line (or to search for points in a binary image).
+## 📸 Camera Calibration  
 
-![image](https://github.com/user-attachments/assets/975711d1-5609-4d0b-8160-019b9fb2cd67)
+Every camera introduces lens distortion. To correct this, we:  
 
-topdown warped binary image
+- Detect chessboard corners (`cv2.findChessboardCorners`).  
+- Build **object points** (3D real-world reference) and **image points** (2D projection).  
+- Calibrate camera with `cv2.calibrateCamera`.  
+- Undistort frames with `cv2.undistort`.  
 
-A histogram is created via lane_histogram from the bottom third of the topdown warped binary image. Within lane_peaks, scipy.signal is used to identify left and right peaks. If just one peak then the max bin either side of centre is returned.
-calc_lane_windows uses these peaks along with a binary image to initialise a left and right instance of a WindowBox class. find_lane_window then controls the WindowBox search up the image to return an array of WindowBoxes that should contain the lane line. calc_fit_from_boxes returns a polynomial or None if nothing found.
-poly_fitx function takes a fity where fity = np.linspace(0, height-1, height) and a polynomial to calculate an array of x values.
+✅ Result: crisp, distortion-free road images ready for processing.  
 
+![Calibration](https://github.com/user-attachments/assets/b00cc303-9a5e-4b38-878c-fd0035da6f98)  
 
-The search result is plotted on the bottom left of the below image with each box in green. To test line searching by polynomial, I then use the left & right WindowBox search polynomials as input to calc_lr_fit_from_polys. The bottom right graphic has the new polynomial line draw with a blue search window (relates to polynomial used for the search from WindBoxes) that was used overlapping with a green window for the new.
+---
 
-![image](https://github.com/user-attachments/assets/712b249d-b103-469a-9794-64c76ee01c88)
+## 🎨 Thresholded Binary Images  
 
-Warped box seek and new polynomial fit
-Radius of curvature calculation and vehicle from centre offset
-In road design, curvature is important and its normally measured by its radius length. For a straight line road, that value can be quite high.
-In this project our images are in pixel space and need to be converted into meters. The images are of US roads and I measured from this image the distance between lines (413 pix) and the height of dashes (275 px). Lane width in the US is ~ 3.7 meters and dashed lines 3 metres. Thus xm_per_pix = 3.7/413 and ym_per_pix = 3./275 were used in calc_curvature. The function converted the polynomial from pixel space into a polynomial in meters.
-To calculate the offset from centre, I first determined where on the x plane, both the left lx and right rx lines crossed the image near the driver. I then calculated the xcentre of the image as the width/2. The offset was calculated such (rx - xcenter) - (xcenter - lx) before being multiple by xm_per_pix.
+Binary thresholding highlights lane markings using:  
 
-lane.result_decorated
-![image](https://github.com/user-attachments/assets/c3c2e8b6-2589-4037-9da4-d520c989bc4b)
+- Sobel Gradients (X, Y, Magnitude, Direction)  
+- HLS Saturation Channel  
+- RGB Red Channel  
+- YUV Luminance  
 
+Different threshold profiles handle **daylight, shadows, and pavement variations**.  
 
+![Binary](https://github.com/user-attachments/assets/08bb71ce-f1e3-445a-9ee4-e6be56a461a5)  
 
+---
+
+## 🕹 Perspective Transform (Bird’s Eye View)  
+
+- Define **source (src)** trapezoid around lane lines.  
+- Map to **destination (dst)** rectangle for top-down view.  
+- Warp/unwarp using transformation matrices `M` and `Minv`.  
+
+This straightens lane lines, making detection more robust.  
+
+![Warp](https://github.com/user-attachments/assets/2f880d2d-7721-4f44-9c25-a1d3ac137df8)  
+
+---
+
+## 📐 Lane Detection & Polynomial Fit  
+
+1. Build lane histogram from bottom third of binary warped image.  
+2. Detect peaks → initialize sliding windows.  
+3. Follow lane pixels vertically with **WindowBox** search.  
+4. Fit left/right lane lines with a 2nd-order polynomial.  
+
+![Fit](https://github.com/user-attachments/assets/712b249d-b103-469a-9794-64c76ee01c88)  
+
+---
+
+## 🛣 Curvature & Vehicle Position  
+
+- Convert pixels → meters using:  
+  ```python
+  xm_per_pix = 3.7 / 413   # meters per pixel in X  
+  ym_per_pix = 3.0 / 275   # meters per pixel in Y  
